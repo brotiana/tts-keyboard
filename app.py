@@ -10,7 +10,6 @@ import json
 import os
 from pathlib import Path
 import queue
-import re
 import sys
 import threading
 import webbrowser
@@ -24,7 +23,7 @@ from dictee.core import Engine, discover_models
 from dictee.audio import AudioRecorder
 from dictee.desktop import DesktopError, X11Desktop
 from dictee.streaming import StreamingSession
-from dictee.focus import FocusWatcher
+from dictee.commands import finish_command as match_finish_command
 
 
 def diagnostic():
@@ -41,13 +40,16 @@ class Application:
     def __init__(self, root, desktop, desktop_problem=""):
         import tkinter as tk
         from tkinter import ttk
+        from dictee.indicator import DictationIndicator
         self.tk, self.ttk = tk, ttk
         self.root, self.desktop = root, desktop
         self.events = queue.Queue()
         self.engine, self.recorder = Engine(), AudioRecorder(max_seconds=None)
         self.focus_watcher = None
         self.voice_target = None
+        self.pending_focus = None
         self.voice_finish = False
+        self.delivery_armed = False
         self.session = None
         self.session_id = 0
         self.session_done = False
@@ -68,7 +70,7 @@ class Application:
         self.last_text = ""
         self.config_path = ROOT / "preferences.json"
         self.preferences = self._read_preferences()
-        self.focus_var = tk.BooleanVar(value=True)
+        self.focus_var = tk.BooleanVar(value=bool(self.preferences.get("listen_on_start", True)))
         self.send_var = tk.BooleanVar(value=bool(self.preferences.get("send_after_paste", False)))
         self.model_var = tk.StringVar()
         self.mic_var = tk.StringVar(value=self.devices[0][1])
@@ -119,9 +121,8 @@ class Application:
         ttk.Label(frame, textvariable=self.device_status, style="Muted.TLabel", wraplength=690).grid(row=7, column=0, sticky="w", pady=(4, 8))
         options = ttk.Frame(frame)
         options.grid(row=8, column=0, sticky="ew")
-        ttk.Checkbutton(options, text="Coller au fur et à mesure pendant une dictée avec F8", variable=self.auto_var).pack(anchor="w")
         ttk.Checkbutton(options, text="Collage dans un terminal (Ctrl+Maj+V)", variable=self.terminal_var).pack(anchor="w", pady=(3, 7))
-        ttk.Checkbutton(options, text="Dictée automatique dans Firefox / VS Code", variable=self.focus_var).pack(anchor="w")
+        ttk.Checkbutton(options, text="Activer le microphone au lancement, sans attendre un champ", variable=self.focus_var, command=self._save_preferences).pack(anchor="w")
         delivery = ttk.Frame(options)
         delivery.pack(anchor="w", pady=(5, 3))
         ttk.Label(delivery, text="Après « terminé » : ").pack(side="left")
@@ -129,7 +130,7 @@ class Application:
         ttk.Radiobutton(delivery, text="Coller et envoyer (Entrée)", variable=self.send_var, value=True, command=self._save_preferences).pack(side="left", padx=10)
         controls = ttk.Frame(frame)
         controls.grid(row=9, column=0, sticky="ew", pady=(5, 10))
-        self.record_button = ttk.Button(controls, text="● Dicter ici", style="Accent.TButton", command=lambda: self.toggle(False))
+        self.record_button = ttk.Button(controls, text="● Activer le clavier vocal", style="Accent.TButton", command=lambda: self.toggle(False))
         self.record_button.pack(side="left")
         self.cancel_button = ttk.Button(controls, text="Annuler la suite", command=self.cancel, state="disabled")
         self.cancel_button.pack(side="left", padx=8)
@@ -149,15 +150,8 @@ class Application:
         ttk.Button(footer, text="Copier le texte", command=self.copy).pack(side="left")
         ttk.Button(footer, text="Effacer", command=lambda: self.text.delete("1.0", "end")).pack(side="left", padx=6)
         ttk.Button(footer, text="Modèles et installation", command=self.open_guide).pack(side="right")
-        ttk.Label(frame, text="F8 → parlez : le texte apparaît automatiquement à mesure. F8 coupe le micro.\nTranscription après une pause sans voix · Aucune coupure périodique.", style="Muted.TLabel", wraplength=690).grid(row=14, column=0, sticky="w", pady=(14, 0))
-        self.mic_indicator = tk.Toplevel(root)
-        self.mic_indicator.withdraw()
-        self.mic_indicator.overrideredirect(True)
-        self.mic_indicator.attributes("-topmost", True)
-        self.mic_indicator.attributes("-type", "tooltip")
-        self.mic_indicator.configure(takefocus=False)
-        self.mic_indicator.geometry(f"+{max(0, root.winfo_screenwidth()-340)}+35")
-        tk.Label(self.mic_indicator, text="● Dictée active — dites « terminé »", bg="#176455", fg="white", padx=15, pady=12).pack()
+        ttk.Label(frame, text="Parlez, puis dites « terminé » : collage dans le champ actif. F8 coupe le micro.\nTranscription après une pause sans voix · Aucune coupure périodique.", style="Muted.TLabel", wraplength=690).grid(row=14, column=0, sticky="w", pady=(14, 0))
+        self.mic_indicator = DictationIndicator(root)
         root.protocol("WM_DELETE_WINDOW", self.close)
         self.refresh_models()
         if desktop:
@@ -165,16 +159,10 @@ class Application:
         else:
             self.device_status.set(desktop_problem)
             self.auto_var.set(False)
-        self.focus_watcher = FocusWatcher(
-            lambda message: self.events.put(("focus", message)),
-            lambda: self.paste_abort.set() if self.voice_target is not None else None,
-        )
-        try:
-            self.focus_watcher.start()
-        except OSError as exc:
-            self.device_status.set(f"Mode automatique indisponible : {exc}")
+        # Le collage direct ne dépend plus du service d’accessibilité.
         self.root.after(60, self.poll)
         self.root.after(250, self.refresh_devices)
+        self.root.after(1000, self._auto_listen)
 
     def _read_preferences(self):
         try:
@@ -185,7 +173,7 @@ class Application:
 
     def _save_preferences(self):
         model = self.selected_model()
-        value = {"model": model.key if model else "base", "auto_paste": self.auto_var.get(), "terminal": self.terminal_var.get(), "microphone": self.mic_var.get(), "send_after_paste": self.send_var.get()}
+        value = {"model": model.key if model else "base", "auto_paste": self.auto_var.get(), "terminal": self.terminal_var.get(), "microphone": self.mic_var.get(), "send_after_paste": self.send_var.get(), "listen_on_start": self.focus_var.get()}
         try:
             temporary = self.config_path.with_suffix(".tmp")
             temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -239,10 +227,14 @@ class Application:
         self.refresh_button.configure(state="disabled" if busy else "normal")
         self.mic_button.configure(state="disabled" if busy else "normal")
         self.record_button.configure(
-            text="■ Couper le micro" if self.state == "recording" else "● Dicter ici",
+            text="■ Couper le micro" if self.state == "recording" else "● Activer le clavier vocal",
             state="normal" if self.state in ("idle", "recording") else "disabled",
         )
         self.cancel_button.configure(state="normal" if self.state in ("starting", "recording", "finishing") else "disabled")
+
+    def _auto_listen(self):
+        if not self.closed and self.state == "idle" and self.focus_var.get():
+            self.toggle(True)
 
     def toggle(self, global_hotkey=False, voice_target=None):
         if self.state == "recording":
@@ -254,15 +246,11 @@ class Application:
         if not model or not model.ready:
             self.status_var.set("Installez un modèle complet dans models/ puis cliquez sur Actualiser.")
             return
+        voice_target = -1  # Écoute indépendante du champ ; cible choisie à la fin.
+        self.delivery_armed = False
         self.target = None
         self.paste_requested = bool(global_hotkey and (voice_target is not None or self.auto_var.get()) and self.desktop)
-        self.paste_terminal = self.terminal_var.get() if voice_target is None else False
-        if self.paste_requested:
-            try:
-                if voice_target is not None or self.root.focus_displayof() is None:
-                    self.target = self.desktop.active_window()
-            except (DesktopError, self.tk.TclError):
-                pass
+        self.paste_terminal = self.terminal_var.get()
         self.voice_target = voice_target
         self.voice_finish = False
         self.delivered = False
@@ -307,6 +295,7 @@ class Application:
             self.session.stop()
 
     def cancel(self):
+        self.cancelled = True
         if self.state == "idle":
             return
         self.cancelled = True
@@ -327,7 +316,7 @@ class Application:
         if getattr(self, "voice_target", None) is not None:
             if self.voice_finish:
                 return
-            command = re.search(r"(?:^|\s)(?:terminé|terminée|termine)[\s.!?,;:…]*$", value, re.IGNORECASE)
+            command = match_finish_command(value)
             if command:
                 finish_command = True
                 value = value[:command.start()].rstrip(" ,;:")
@@ -385,7 +374,7 @@ class Application:
         def work():
             error = None
             try:
-                self.desktop.paste(target, terminal, cancel_event=abort)
+                self.desktop.paste(None, terminal, cancel_event=abort, check_target=False)
             except Exception as exc:
                 error = str(exc)
             self.events.put(("paste_finished", (session_id, error)))
@@ -409,7 +398,7 @@ class Application:
             self.paste_busy = False
             if not error and not self.cancelled and self.voice_target is not None and self.voice_finish and self.session_send:
                 try:
-                    self.desktop.submit(self.target, self.paste_abort)
+                    self.desktop.submit(None, self.paste_abort, check_target=False)
                 except DesktopError as exc:
                     self.paste_warning = str(exc)
             self._pump_paste()
@@ -423,12 +412,18 @@ class Application:
         elif self.finish_message:
             message = self.finish_message
         elif self.session_text:
-            message = "Dictée terminée." + (" " + self.paste_warning if self.paste_warning else " F8 pour recommencer.")
+            message = "Dictée terminée." + (" " + self.paste_warning if self.paste_warning else " Écoute relancée automatiquement.")
         else:
             message = "Aucune parole reconnue. Vérifiez le microphone ou essayez Tiny."
         self._idle(message)
 
+    def _resume_pending_focus(self, token):
+        if (not self.closed and self.state == "idle" and self.focus_var.get()
+                and self.desktop and token is not None and self.focus_watcher.token == token):
+            self.toggle(True, voice_target=token)
+
     def _idle(self, message):
+        self.delivery_armed = False
         if getattr(self, "voice_target", None) is not None and self.session_text and not getattr(self, "delivered", False):
             try:
                 self._clipboard(" ".join(self.session_text))
@@ -441,6 +436,13 @@ class Application:
         self.status_var.set(message)
         self._controls()
         self._save_preferences()
+        if getattr(self, "voice_finish", False) and not self.cancelled and not getattr(self, "finish_message", ""):
+            session_id = self.session_id
+            self.root.after(150, lambda: self._restart_listening(session_id))
+
+    def _restart_listening(self, session_id):
+        if not self.closed and self.state == "idle" and not self.cancelled and self.session_id == session_id:
+            self.toggle(True)
 
     def _clipboard(self, text):
         self.root.clipboard_clear()
@@ -470,6 +472,8 @@ class Application:
                 self.mic_indicator.deiconify()
             self._controls()
             self.status_var.set("● Microphone ouvert. Parlez : le texte arrive automatiquement.")
+        elif kind == "processing":
+            self.mic_indicator.set_processing(value)
         elif kind == "text":
             self._receive_text(value)
         elif kind == "status" and not self.cancelled:
@@ -491,12 +495,16 @@ class Application:
             self.state = "finishing" if not self.cancelled else "cancelling"
             self._controls()
             if kind == "done" and self.voice_target is not None and self.voice_finish and not self.cancelled:
-                if self.focus_watcher.token == self.voice_target and not self.paste_abort.is_set() and self.session_text:
-                    self.paste_queue.append(" ".join(self.session_text))
-                else:
-                    self.paste_blocked = True
-                    self.paste_warning = "Champ changé : texte conservé ici."
+                self._deliver_to_current_field()
             self._pump_paste()
+
+    def _deliver_to_current_field(self):
+        # Ctrl+V au curseur actuel, sans détection de champ ou de fenêtre.
+        if not self.session_text:
+            return
+        self.paste_abort = threading.Event()
+        self.paste_blocked = False
+        self.paste_queue.append(" ".join(self.session_text))
 
     def poll(self):
         if self.closed:
@@ -507,15 +515,8 @@ class Application:
                 if kind == "focus":
                     if 'error' in value:
                         self.device_status.set("Mode automatique indisponible : " + value['error'])
-                    if 'focus' in value:
-                        token = value['focus']
-                        if token != self.focus_watcher.token:
-                            continue  # Événement dépassé : ne pas démarrer sur un ancien champ.
-                        if self.voice_target is not None and token != self.voice_target and self.state != "idle":
-                            self.paste_warning = "Champ cible changé : collage interrompu."
-                            self.cancel()
-                        elif token is not None and self.state == "idle" and self.focus_var.get() and self.desktop:
-                            self.toggle(True, voice_target=token)
+                    # Le focus ne démarre ni n'arrête plus le microphone.
+                    # Le watcher invalide seulement un collage déjà préparé.
                 elif kind == "hotkey":
                     self.toggle(True)
                 elif kind == "stream":

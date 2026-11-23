@@ -20,6 +20,8 @@ class VoiceFinishTests(unittest.TestCase):
         app.paste_warning=''
         app.paste_requested=True
         app._pump_paste=Mock()
+        app.desktop=Mock()
+        app.desktop.active_window.return_value=123
         return app
     def test_command_stops_without_becoming_message_text(self):
         app=self.app()
@@ -60,16 +62,50 @@ class VoiceFinishTests(unittest.TestCase):
         self.assertEqual(list(app.paste_queue), ['Bonjour.'])
         app._pump_paste.assert_called_once()
 
-    def test_changed_field_never_queues_message(self):
+    def test_no_field_detection_is_needed_to_queue_paste(self):
+        app=self.app()
+        app.focus_watcher=None
+        app.paste_queue=deque()
+        app.session_text=['Bonjour.']
+        app._deliver_to_current_field()
+        self.assertEqual(list(app.paste_queue),['Bonjour.'])
+        app.desktop.active_window.assert_not_called()
+
+    def test_focus_changes_do_not_block_direct_paste(self):
+        app=self.app()
+        app.focus_watcher=Mock(token=None)
+        app.paste_queue=deque()
+        app.session_text=['Bonjour.']
+        app._deliver_to_current_field()
+        self.assertFalse(app.paste_blocked)
+        self.assertEqual(list(app.paste_queue),['Bonjour.'])
+        app.desktop.active_window.assert_not_called()
+
+    def test_restart_after_finished_message_requires_no_click(self):
         app=self.app()
         app.closed=False
+        app.state='idle'
         app.session_id=3
-        app.mic_indicator=Mock()
-        app._controls=Mock()
-        app.focus_watcher=Mock(token=99)
-        app.paste_abort=threading.Event()
-        app.paste_queue=deque()
-        app._receive_text('Bonjour. Terminé !')
-        app._stream_event(3, 'done', None)
-        self.assertEqual(list(app.paste_queue), [])
-        self.assertTrue(app.paste_blocked)
+        app.toggle=Mock()
+        app._restart_listening(3)
+        app.toggle.assert_called_once_with(True)
+
+    def test_cancel_prevents_scheduled_restart(self):
+        app=self.app()
+        app.closed=False
+        app.state='idle'
+        app.session_id=3
+        app.cancelled=True
+        app.toggle=Mock()
+        app._restart_listening(3)
+        app.toggle.assert_not_called()
+
+    def test_auto_listening_does_not_require_a_focused_field(self):
+        app=self.app()
+        app.closed=False
+        app.state='idle'
+        app.focus_var=Mock(get=Mock(return_value=True))
+        app.focus_watcher=Mock(token=None)
+        app.toggle=Mock()
+        app._auto_listen()
+        app.toggle.assert_called_once_with(True)

@@ -140,8 +140,7 @@ depuis Internet : `bash installer.sh --en-ligne`.
 4. Le microphone reste ouvert pour la phrase suivante. **F8** ou **Couper le micro**
    termine la session et transcrit les derniers mots encore en attente.
 
-Le collage automatique nécessite de conserver la fenêtre cible active. Après un
-changement de fenêtre, le texte reste dans le résultat pour être copié manuellement.
+Le collage automatique utilise le curseur actuel, sans vérification de la fenêtre.
 Pour un terminal, cochez **Collage dans un terminal (Ctrl+Maj+V)**.
 **Annuler la suite** ignore les passages en attente, sans effacer le texte déjà reçu.
 La détection de pause utilise le niveau sonore : en présence de bruit constant,
@@ -200,49 +199,33 @@ Aucun modèle ni paquet Python n'a été téléchargé pour créer ce projet.
 - [pip : préparer des paquets pour une autre plateforme](https://pip.pypa.io/en/stable/cli/pip_download/)
 - Les dépôts Systran du tableau donnent les modèles multilingues et les tailles.
 
-## Activation automatique dans Firefox et VS Code
+## Collage direct et écoute automatique
 
-Laissez l'application ouverte, éventuellement réduite. Le mode automatique
-surveille les champs modifiables exposés par l'accessibilité Linux (AT-SPI).
-Cliquez dans un champ Firefox ou VS Code ; attendez l'indicateur vert avant de
-parler. Faites une pause, puis dites **« terminé » à la fin du message**, suivi d'une pause.
-Le texte accumulé est collé sans le mot de commande, puis Entrée est envoyée
-si l'option correspondante est cochée. Décochez-la pour insérer seulement.
-Un changement de champ annule les opérations encore en attente ; le texte
-reconnu reste disponible dans la fenêtre. Les mots de passe sont exclus.
+Le microphone peut démarrer au lancement. Parlez puis dites **« terminé »** à la
+fin, suivi d’une pause. Le texte reconnu est copié et le programme simule
+**Ctrl+V**, sans détecter de champ, de fenêtre ni utiliser AT-SPI.
+Le collage agit là où se trouve votre curseur, comme un collage au clavier.
+L’option terminal utilise Ctrl+Maj+V. Choisissez **Coller seulement** ou
+**Coller et envoyer (Entrée)** dans l’interface ; le choix est mémorisé.
 
-Les champs HTML input/textarea et les éditeurs de chat doivent être exposés par
-l'accessibilité du logiciel. Cette prise en charge n'est pas garantie pour tous
-les sites ni pour la vue Codex de VS Code. Dans VS Code, le mode d'accessibilité
-peut être activé avec `editor.accessibilitySupport: "on"`. Si aucun champ n'est
-détecté, utilisez F8. Entrée peut ajouter une ligne au lieu d'envoyer selon le
-site ; aucun bouton Envoyer spécifique n'est recherché. Le programme ne démarre
-pas tout seul à l'ouverture de la session : lancez `bash lancer.sh` au préalable.
-La surveillance utilise le Python système et ses paquets `python3-pyatspi` et
-`python3-gi`, déjà présents sur cette machine.
+Après chaque message, l’écoute reprend automatiquement sans clic. **F8** ou
+**Couper le micro** arrête explicitement l’écoute. **Annuler la suite** annule
+les opérations en attente. Les textes reconnus restent disponibles dans la
+fenêtre si le logiciel destinataire n’accepte pas le collage.
+Aucun démarrage particulier de VS Code ni passage par Firefox n’est nécessaire.
 
-### Si VS Code ne détecte aucun champ
+## Panneau flottant
 
-Sur cette machine, VS Code exposait sa fenêtre mais aucun champ interne à AT-SPI.
-Enregistrez votre travail et fermez toutes les fenêtres VS Code, puis lancez,
-depuis le dossier du projet :
+Le petit panneau vert se déplace en maintenant le bouton gauche de la souris
+sur le panneau puis en glissant. Une barre animée et le message « Audio reçu —
+transcription en cours… » apparaissent pendant le calcul Whisper. Le panneau
+revient à « Dictée active » quand le traitement est fini.
 
-```bash
-bash lancer-vscode-accessible.sh
-```
+### Tolérance de la commande « terminé »
 
-Ce script active l'accessibilité du moteur Electron. Il ne ferme aucune fenêtre
-et ne modifie pas vos réglages. Si VS Code est encore en cours, son processus
-existant peut ignorer ce paramètre. Relancez aussi Dictée clavier après mise à jour.
-Le mot « terminé » peut maintenant se trouver à la fin du même passage que le
-message ; il est retiré avant insertion. Pour dicter ce mot littéralement,
-ne le placez pas seul à la fin d'un passage dans le mode automatique.
-
-### Choisir le collage et l’envoi
-
-Dans « Après terminé », choisissez **Coller seulement** ou **Coller et envoyer
-(Entrée)**. Le choix est mémorisé et appliqué à la prochaine dictée automatique.
-L’envoi dépend toujours du comportement de la touche Entrée sur le site.
-Si le champ perd le focus et que le collage est annulé, le message est conservé
-dans le résultat et copié dans le presse-papiers : cliquez dans le champ voulu,
-puis faites Ctrl+V. Le statut indique la raison connue de l’interruption.
+La commande finale ignore les accents et la casse, et accepte au plus 15 %
+d’éditions de caractères par rapport à « termine », rapportées à la longueur
+du mot le plus long. « terminer » et « terminée » sont donc acceptés. Le mot
+doit rester à la fin du passage. Les différences plus importantes, comme
+« interminer », ne sont pas comprises dans cette tolérance. Le panneau de
+chargement est compact et utilise une barre animée fine.

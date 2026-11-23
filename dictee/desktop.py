@@ -113,9 +113,9 @@ class X11Desktop:
         self._thread = threading.Thread(target=listen, name="raccourci-f8", daemon=True)
         self._thread.start()
 
-    def paste(self, target, terminal=False, cancel_event=None):
+    def paste(self, target=None, terminal=False, cancel_event=None, check_target=True):
         """Le presse-papiers est préparé par Tk avant cet appel en arrière-plan."""
-        if not target:
+        if check_target and not target:
             raise DesktopError("Fenêtre cible inconnue : utilisez Copier puis Ctrl+V.")
         def check_cancelled():
             if cancel_event is not None and cancel_event.is_set():
@@ -137,7 +137,7 @@ class X11Desktop:
                 if time.monotonic() > deadline:
                     raise DesktopError("Collage reporté : relâchez Ctrl/Alt/Maj, puis utilisez Ctrl+V.")
                 time.sleep(0.025)
-            if self._active(display) != target:
+            if check_target and self._active(display) != target:
                 raise DesktopError("La fenêtre active a changé. Texte copié : collez-le avec Ctrl+V au bon endroit.")
             check_cancelled()
             sequence = [control] + ([shift] if terminal else []) + [letter]
@@ -155,10 +155,10 @@ class X11Desktop:
                     self.xt.XTestFakeKeyEvent(display, code, 0, 0)
                 self.x.XFlush(display)
 
-    def submit(self, target, cancel_event):
+    def submit(self, target, cancel_event, check_target=True):
         """Entrée uniquement si la cible et la session sont encore valides."""
         with self._display() as display:
-            if cancel_event.is_set() or self._active(display) != target:
+            if cancel_event.is_set() or (check_target and self._active(display) != target):
                 raise DesktopError("Envoi annulé : le champ ou la fenêtre a changé.")
             keys = (C.c_ubyte * 32)()
             self.x.XQueryKeymap(display, keys)

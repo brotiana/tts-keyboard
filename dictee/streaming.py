@@ -229,7 +229,11 @@ class StreamingSession:
                     count = len(audio)
                     self._queued_samples -= count
                     self._inflight_samples = count
-                text = self.engine.transcribe(audio, self._model_path)
+                self._emit("processing", True)
+                try:
+                    text = self.engine.transcribe(audio, self._model_path)
+                finally:
+                    self._emit("processing", False)
                 with self._condition:
                     self._inflight_samples = 0
                     if self._cancel_requested or self._failure:

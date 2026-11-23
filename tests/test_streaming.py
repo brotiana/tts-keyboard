@@ -157,6 +157,17 @@ class StreamingTests(unittest.TestCase):
         self.assertFalse(self.session.active)
         self.assertEqual(self.events.values("text"), ["1"])
 
+    def test_processing_indicator_tracks_actual_decoder_work(self):
+        self.make_session()
+        self.engine.decode_gate.clear()
+        self.start()
+        self.recorder.push(1)
+        self.assertTrue(self.engine.decode_entered.wait(1))
+        self.assertEqual(self.events.values("processing"), [True])
+        self.engine.decode_gate.set()
+        self.events.wait("text")
+        self.assertEqual(self.events.values("processing"), [True, False])
+
     def test_stop_flushes_final_phrase_once(self):
         self.make_session(chunker_factory=FlushChunker)
         self.start()

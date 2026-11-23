@@ -3,6 +3,22 @@ import json
 import sys
 
 
+def active_window(source, api):
+    """Un champ peut garder FOCUSED dans une fenêtre devenue inactive."""
+    try:
+        node = source
+        for _ in range(100):
+            node.clearCache()
+            if node.getRole() in (api.ROLE_FRAME, api.ROLE_DIALOG):
+                return node.getState().contains(api.STATE_ACTIVE)
+            node = node.parent
+            if node is None:
+                break
+    except Exception:
+        pass
+    return False
+
+
 def main():
     import pyatspi as a
     from gi.repository import GLib
@@ -15,6 +31,7 @@ def main():
             state = source.getState()
             app = source.getApplication().name.casefold()
             return (app in ('firefox', 'code', 'code - oss', 'codium', 'visual studio code')
+                    and active_window(source, a)
                     and state.contains(a.STATE_EDITABLE)
                     and state.contains(a.STATE_FOCUSED)
                     and state.contains(a.STATE_ENABLED)
@@ -37,7 +54,8 @@ def main():
             for app in a.Registry.getDesktop(0):
                 if app.name.casefold() not in ('firefox', 'code', 'code - oss', 'codium', 'visual studio code'):
                     continue
-                stack = [app]
+                app.clearCache()
+                stack = [window for window in app if window is not None and active_window(window, a)]
                 visited = 0
                 while stack and visited < 2500:
                     node = stack.pop()
@@ -46,6 +64,7 @@ def main():
                         publish(node, clicked)
                         return False
                     try:
+                        node.clearCache()
                         stack.extend(child for child in node if child is not None)
                     except Exception:
                         pass
@@ -69,8 +88,7 @@ def main():
         return True
 
     def recover():
-        if current[0] is None:
-            scan()
+        scan()
         return True
 
     def clicked(event):
@@ -78,6 +96,7 @@ def main():
 
     a.Registry.registerEventListener(changed, 'object:state-changed:focused')
     a.Registry.registerEventListener(clicked, 'mouse:button:1r')
+    a.Registry.registerEventListener(lambda event: GLib.timeout_add(100, scan), 'window:activate', 'window:deactivate')
     GLib.timeout_add(100, check)
     GLib.timeout_add(1000, recover)
     GLib.timeout_add(300, scan)

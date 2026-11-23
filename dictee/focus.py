@@ -28,6 +28,7 @@ class FocusWatcher:
                         self.invalidate()
                     self.token = message['focus']
                 self.callback(message)
+            self.token = None
             self.invalidate()
             self.callback({'error': 'La surveillance des champs est arrêtée.'})
         threading.Thread(target=read, daemon=True).start()

@@ -35,7 +35,7 @@ class DeliveryTests(unittest.TestCase):
         app._paste_finished(1,None)
         app.desktop.submit.assert_not_called()
         app.root.after.call_args.args[1]()
-        app.desktop.submit.assert_called_once_with(123,app.paste_abort)
+        app.desktop.submit.assert_called_once_with(None,app.paste_abort,check_target=False)
 
     def test_choice_is_saved(self):
         app=self.make_app()
@@ -44,6 +44,7 @@ class DeliveryTests(unittest.TestCase):
         app.terminal_var=Mock(get=Mock(return_value=False))
         app.mic_var=Mock(get=Mock(return_value='default'))
         app.send_var=Mock(get=Mock(return_value=False))
+        app.focus_var=Mock(get=Mock(return_value=True))
         with tempfile.TemporaryDirectory() as folder:
             app.config_path=Path(folder)/'preferences.json'
             app._save_preferences()
