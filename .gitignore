@@ -1,0 +1,29 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+models/*
+!models/.gitkeep
+wheelhouse/*
+!wheelhouse/.gitkeep
+*.part
+*.part.json
+preferences.json
+preferences.tmp
+
+# Archives et poids de modèles, même déposés à la racine
+*.zip
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.gguf
+*.whl
+# Données locales et configuration des outils
+.agents/
+.codex/
+.aws/
+.env
+.env.*
+*.log

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dictée clavier — téléchargements au cybercafé</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.6; }
+    body { max-width: 900px; margin: auto; padding: 24px; background: #f8fafc; color: #172333; }
+    h1 { line-height: 1.2; } h2 { margin-top: 0; } h2 span { font-size: .75em; font-weight: normal; color: #4d5968; }
+    section, aside { border: 1px solid #c8d4df; background: white; padding: 20px; border-radius: 12px; margin: 20px 0; }
+    aside { border-left: 5px solid #126b61; } a { color: #005b99; overflow-wrap: anywhere; }
+    ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-left: 24px; }
+    li a { font-weight: 600; } pre { overflow: auto; background: #edf2f6; padding: 16px; }
+    code { font-size: 1.02em; } footer { color: #4d5968; margin-top: 32px; }
+    @media (max-width: 500px) { body { padding: 16px; } ul { grid-template-columns: 1fr; } }
+    @media (prefers-color-scheme: dark) {
+      body { background: #151d28; color: #e3edf5; } section, aside { background: #1d2938; border-color: #415164; }
+      a { color: #8fcfff; } pre { background: #111a25; } h2 span, footer { color: #bac8d5; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Dictée clavier : préparer vos modèles</h1>
+  <p>Ces modèles comprennent le <strong>français</strong>. Ils fonctionnent avec cette application au format faster-whisper / CTranslate2. Commencez par <strong>base</strong> et gardez <strong>tiny</strong> en secours.</p>
+  <aside>
+    <strong>À télécharger au cybercafé, pas maintenant si votre connexion est limitée.</strong>
+    <p>Cette page peut être consultée hors ligne et ne charge aucune ressource distante. Seul un clic sur un lien de téléchargement ouvre Internet. Téléchargez <strong>les quatre fichiers de chaque modèle choisi</strong>.</p>
+    <p>Il faut aussi les bibliothèques Python : avec Python et pip disponibles au cybercafé, lancez <code>python3 preparer_hors_ligne.py</code> (Windows : <code>py preparer_hors_ligne.py</code>). Rapportez tout le dossier <code>wheelhouse/</code> avec le code et les modèles.</p>
+  </aside>
+  <section>
+    <h2>tiny <span>≈ 78,2 Mo</span></h2>
+    <p>Le plus léger, à garder comme secours. Enregistrez les quatre fichiers dans <code>models/tiny/</code>.</p>
+    <ul>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-tiny/resolve/main/config.json?download=true" rel="noreferrer">config.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-tiny/resolve/main/model.bin?download=true" rel="noreferrer">model.bin</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-tiny/resolve/main/tokenizer.json?download=true" rel="noreferrer">tokenizer.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-tiny/resolve/main/vocabulary.txt?download=true" rel="noreferrer">vocabulary.txt</a></li>
+    </ul>
+    <p><a href="https://huggingface.co/Systran/faster-whisper-tiny/tree/main" rel="noreferrer">Voir les fichiers sur le dépôt officiel Systran</a></p>
+  </section>
+  <section>
+    <h2>base <span>≈ 148 Mo</span></h2>
+    <p>Conseillé pour commencer sur votre i5. Enregistrez les quatre fichiers dans <code>models/base/</code>.</p>
+    <ul>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-base/resolve/main/config.json?download=true" rel="noreferrer">config.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-base/resolve/main/model.bin?download=true" rel="noreferrer">model.bin</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-base/resolve/main/tokenizer.json?download=true" rel="noreferrer">tokenizer.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-base/resolve/main/vocabulary.txt?download=true" rel="noreferrer">vocabulary.txt</a></li>
+    </ul>
+    <p><a href="https://huggingface.co/Systran/faster-whisper-base/tree/main" rel="noreferrer">Voir les fichiers sur le dépôt officiel Systran</a></p>
+  </section>
+  <section>
+    <h2>small <span>≈ 486 Mo</span></h2>
+    <p>À essayer ensuite ; plus lent. Enregistrez les quatre fichiers dans <code>models/small/</code>.</p>
+    <ul>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-small/resolve/main/config.json?download=true" rel="noreferrer">config.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-small/resolve/main/model.bin?download=true" rel="noreferrer">model.bin</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-small/resolve/main/tokenizer.json?download=true" rel="noreferrer">tokenizer.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-small/resolve/main/vocabulary.txt?download=true" rel="noreferrer">vocabulary.txt</a></li>
+    </ul>
+    <p><a href="https://huggingface.co/Systran/faster-whisper-small/tree/main" rel="noreferrer">Voir les fichiers sur le dépôt officiel Systran</a></p>
+  </section>
+  <section>
+    <h2>medium <span>≈ 1,53 Go</span></h2>
+    <p>Option lourde, potentiellement très lente. Enregistrez les quatre fichiers dans <code>models/medium/</code>.</p>
+    <ul>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-medium/resolve/main/config.json?download=true" rel="noreferrer">config.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-medium/resolve/main/model.bin?download=true" rel="noreferrer">model.bin</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-medium/resolve/main/tokenizer.json?download=true" rel="noreferrer">tokenizer.json</a></li>
+      <li><a href="https://huggingface.co/Systran/faster-whisper-medium/resolve/main/vocabulary.txt?download=true" rel="noreferrer">vocabulary.txt</a></li>
+    </ul>
+    <p><a href="https://huggingface.co/Systran/faster-whisper-medium/tree/main" rel="noreferrer">Voir les fichiers sur le dépôt officiel Systran</a></p>
+  </section>
+  <section>
+    <h2>Où placer les fichiers ?</h2>
+    <pre>tts keyboard/
+├── app.py
+├── models/
+│   ├── tiny/
+│   │   ├── config.json
+│   │   ├── model.bin
+│   │   ├── tokenizer.json
+│   │   └── vocabulary.txt
+│   └── base/
+│       ├── config.json
+│       ├── model.bin
+│       ├── tokenizer.json
+│       └── vocabulary.txt
+└── wheelhouse/
+    └── les paquets .whl téléchargés</pre>
+    <p>Conservez les noms exacts : pas de <code>model (1).bin</code>, ni de <code>config.json.txt</code>. Les variantes <code>.en</code> et les modèles <code>.pt</code> ne conviennent pas.</p>
+    <p>Si Python est disponible au cybercafé, le téléchargement automatique avec reprise et vérification SHA256 est plus simple :</p>
+    <pre>python3 telecharger_modeles.py tiny base
+python3 preparer_hors_ligne.py</pre>
+    <p>Sous Windows, remplacez <code>python3</code> par <code>py</code>. Pour plus de modèles : ajoutez <code>small medium</code> à la première commande.</p>
+    <p>Chez vous, ouvrez un terminal dans le dossier du code :</p>
+    <pre>bash installer.sh
+bash lancer.sh</pre>
+    <p>L'installation est hors ligne par défaut. Les composants système <code>python3-venv</code>, <code>python3-tk</code> et <code>libportaudio2</code> doivent être disponibles sur Linux Mint. Consultez <a href="README.md">README.md</a> pour les prérequis et le dépannage.</p>
+  </section>
+  <footer>Sources : dépôts officiels Systran sur Hugging Face. Tailles indicatives vérifiées le 21 novembre 2026, bibliothèques Python non comprises. Aucun téléchargement au simple affichage de cette page.</footer>
+</body>
+</html>
+
